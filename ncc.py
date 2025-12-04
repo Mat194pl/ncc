@@ -67,11 +67,13 @@ class Rule(object):
 class ScopePrefixRule(object):
     def __init__(self, pattern_obj):
         self.name = "ScopePrefixRule"
-        self.rule_names = ["Global", "Static", "ClassMember", "StructMember"]
+        self.rule_names = ["Global", "Static", "ClassMember", "StructMember", "Variable", "Parameter"]
         self.global_prefix = ""
         self.static_prefix = ""
         self.class_member_prefix = ""
         self.struct_member_prefix = ""
+        self.variable_prefix = ""
+        self.parameter_prefix = ""
 
         try:
             for key, value in pattern_obj.items():
@@ -83,6 +85,10 @@ class ScopePrefixRule(object):
                     self.class_member_prefix = value
                 elif key == "StructMember":
                     self.struct_member_prefix = value
+                elif key == "Variable":
+                    self.variable_prefix = value
+                elif key == "Parameter":
+                    self.parameter_prefix = value
                 else:
                     raise ValueError(key)
         except ValueError as e:
@@ -123,7 +129,8 @@ class VariableNameRule(object):
     def __init__(self, pattern_obj=None):
         self.name = "VariableName"
         self.pattern_str = "^.*$"
-        self.rule_names = ["ScopePrefix", "DataTypePrefix", "Pattern"]
+        self.const_pattern_str = None
+        self.rule_names = ["ScopePrefix", "DataTypePrefix", "Pattern", "ConstPattern"]
         self.scope_prefix_rule = None
         self.datatype_prefix_rule = None
 
@@ -135,6 +142,8 @@ class VariableNameRule(object):
                     self.datatype_prefix_rule = DataTypePrefixRule(value)
                 elif key == "Pattern":
                     self.pattern_str = value
+                elif key == "ConstPattern":
+                    self.const_pattern_str = value
                 else:
                     raise ValueError(key)
         except ValueError as e:
@@ -150,11 +159,17 @@ class VariableNameRule(object):
     def get_scope_prefix(self, node, scope=None):
         if node.storage_class == StorageClass.STATIC:
             return self.scope_prefix_rule.static_prefix
-        elif (scope is None) and (node.storage_class == StorageClass.EXTERN or
-                                  node.storage_class == StorageClass.NONE):
+        elif (scope is None or scope is CursorKind.NAMESPACE) and (node.storage_class == StorageClass.EXTERN or
+                                                                   node.storage_class == StorageClass.NONE):
             return self.scope_prefix_rule.global_prefix
-        elif (scope is CursorKind.CLASS_DECL):
+        elif (scope in [CursorKind.CLASS_DECL, CursorKind.CLASS_TEMPLATE]):
             return self.scope_prefix_rule.class_member_prefix
+        elif (scope is CursorKind.STRUCT_DECL):
+            return self.scope_prefix_rule.struct_member_prefix
+        elif (node.kind is CursorKind.VAR_DECL):
+            return self.scope_prefix_rule.variable_prefix
+        elif (node.kind is CursorKind.PARM_DECL):
+            return self.scope_prefix_rule.parameter_prefix
         return ""
 
     def get_datatype_prefix(self, node):
@@ -174,6 +189,19 @@ class VariableNameRule(object):
         return ""
 
     def evaluate(self, node, scope=None):
+        #print("Evaluating node: {}".format(node.displayname))
+        
+        # Check if this is a const variable and we have a const pattern
+        if self.const_pattern_str and node.type.is_const_qualified():
+            pattern = re.compile(self.const_pattern_str)
+            if not pattern.match(node.spelling):
+                fmt = '{}:{}:{}: "{}" does not have the pattern {} associated with const Variable name\n'
+                msg = fmt.format(node.location.file.name, node.location.line, node.location.column,
+                                 node.displayname, self.const_pattern_str)
+                sys.stderr.write(msg)
+                return False
+            return True
+        
         pattern_str = self.pattern_str
         scope_prefix = self.get_scope_prefix(node, scope)
         datatype_prefix = self.get_datatype_prefix(node)
@@ -454,6 +482,7 @@ class RulesDb(object):
                         self.__rule_db[rule_name] = VariableNameRule(pattern_str)
                         self.__clang_db[CursorKind.FIELD_DECL] = rule_name
                         self.__clang_db[CursorKind.VAR_DECL] = rule_name
+                        self.__clang_db[CursorKind.PARM_DECL] = rule_name
                     else:
                         self.__rule_db[rule_name] = default_rules_db[rule_name]
                         self.__rule_db[rule_name].pattern_str = pattern_str
@@ -521,7 +550,7 @@ class Validator(object):
         errors = 0
         for child in node.get_children():
             if self.is_local(child, self.filename):
-
+                #print("Validating node: {} of kind {}".format(child.displayname, child.kind))
                 # This is the case when typedef of struct is causing double reporting of error
                 # TODO: Find a better way to handle it
                 parent = self.node_stack.peek()
