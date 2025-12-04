@@ -433,8 +433,10 @@ class Options:
                                  "matches a specified pattern according to the rules used by "
                                  "the Unix shell")
 
-        # self.parser.add_argument('--exclude-dir', dest='exclude_dir', help="Skip the directories"
-        #                          "matching the pattern specified")
+        self.parser.add_argument('--exclude-dir', dest='exclude_dir', nargs="+", help="Skip directories "
+                                 "matching the pattern specified from recursive searches. It "
+                                 "matches a specified pattern according to the rules used by "
+                                 "the Unix shell")
 
         self.parser.add_argument('--path', dest='path', nargs="+",
                                  help="Path of file or directory")
@@ -634,6 +636,21 @@ if __name__ == "__main__":
                 errors += v.validate()
         elif os.path.isdir(path):
             for (root, subdirs, files) in os.walk(path):
+                # Filter out excluded directories
+                if op.args.exclude_dir:
+                    filtered_subdirs = []
+                    for d in subdirs:
+                        full_dir_path = os.path.join(root, d)
+                        # Check if any pattern matches either the directory name or the full path
+                        exclude = False
+                        for pattern in op.args.exclude_dir:
+                            if fnmatch.fnmatch(d, pattern) or fnmatch.fnmatch(full_dir_path, pattern) or pattern in full_dir_path:
+                                exclude = True
+                                break
+                        if not exclude:
+                            filtered_subdirs.append(d)
+                    subdirs[:] = filtered_subdirs
+                
                 for filename in files:
                     path = root + '/' + filename
                     if do_validate(op, path):

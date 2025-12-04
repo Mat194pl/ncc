@@ -1,12 +1,12 @@
 # All Style settings supported by 'ncc'
 ClassName: '^[A-Z][a-zA-Z0-9]*$'
 CppMethod: '^[a-z][a-zA-Z0-9]*$'
-EnumConstantName: '^[A-Z][A-Z0-9_]*$'
+EnumConstantName: '^[A-Z][a-zA-Z0-9]*$'
 MacroDefinition: '^[A-Z][A-Z0-9_]*$'
 VariableName:
     ScopePrefix:
         Global: 'g_'
-        Static: ''
+        Static: 's_'
         ClassMember: 'm_'
         Parameter: 't_'
         Variable: ''
