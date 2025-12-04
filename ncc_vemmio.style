@@ -1,6 +1,6 @@
 # All Style settings supported by 'ncc'
 ClassName: '^[A-Z][a-zA-Z0-9]*$'
-CppMethod: '^[a-z][a-zA-Z0-9]*$'
+CppMethod: '^([a-z][a-zA-Z0-9]*|operator.*)$'
 EnumConstantName: '^[A-Z][a-zA-Z0-9]*$'
 MacroDefinition: '^[A-Z][A-Z0-9_]*$'
 VariableName:
