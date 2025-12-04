@@ -191,8 +191,13 @@ class VariableNameRule(object):
     def evaluate(self, node, scope=None):
         #print("Evaluating node: {}".format(node.displayname))
         
+        # Skip validation for unnamed parameters (common in function pointer typedefs)
+        if not node.spelling or node.spelling == '':
+            return True
+        
         # Check if this is a const variable and we have a const pattern
-        if self.const_pattern_str and node.type.is_const_qualified():
+        # BUT exclude parameters - they should follow parameter naming rules even if const
+        if self.const_pattern_str and node.type.is_const_qualified() and node.kind != CursorKind.PARM_DECL:
             pattern = re.compile(self.const_pattern_str)
             if not pattern.match(node.spelling):
                 fmt = '{}:{}:{}: "{}" does not have the pattern {} associated with const Variable name\n'
