@@ -67,11 +67,12 @@ class Rule(object):
 class ScopePrefixRule(object):
     def __init__(self, pattern_obj):
         self.name = "ScopePrefixRule"
-        self.rule_names = ["Global", "Static", "ClassMember", "StructMember", "Variable", "Parameter"]
+        self.rule_names = ["Global", "Static", "ClassMember", "StructMember", "UnionMember", "Variable", "Parameter"]
         self.global_prefix = ""
         self.static_prefix = ""
         self.class_member_prefix = ""
         self.struct_member_prefix = ""
+        self.union_member_prefix = ""
         self.variable_prefix = ""
         self.parameter_prefix = ""
 
@@ -85,6 +86,8 @@ class ScopePrefixRule(object):
                     self.class_member_prefix = value
                 elif key == "StructMember":
                     self.struct_member_prefix = value
+                elif key == "UnionMember":
+                    self.union_member_prefix = value
                 elif key == "Variable":
                     self.variable_prefix = value
                 elif key == "Parameter":
@@ -166,6 +169,8 @@ class VariableNameRule(object):
             return self.scope_prefix_rule.class_member_prefix
         elif (scope is CursorKind.STRUCT_DECL):
             return self.scope_prefix_rule.struct_member_prefix
+        elif (scope is CursorKind.UNION_DECL):
+            return self.scope_prefix_rule.union_member_prefix
         elif (node.kind is CursorKind.VAR_DECL):
             return self.scope_prefix_rule.variable_prefix
         elif (node.kind is CursorKind.PARM_DECL):
